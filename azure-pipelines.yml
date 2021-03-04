@@ -46,14 +46,15 @@ steps:
     Dockerfile: '**/Dockerfile'
     buildContext: '$(Build.SourcesDirectory)\FullFrameworkDemo'
 
-- task: PublishBuildArtifacts@1
-  displayName: 'Publish WebApp YAML file'
-  inputs:
-    PathtoPublish: 'frontend-webapp.yaml'
-    ArtifactName: 'frontend-webapp'
-    publishLocation: 'Container'
+#- task: PublishBuildArtifacts@1
+#  displayName: 'Publish WebApp YAML file'
+#  inputs:
+#    PathtoPublish: 'frontend-webapp.yaml'
+#    ArtifactName: 'frontend-webapp'
+#    publishLocation: 'Container'
 
 - task: Kubernetes@1
+  displayName: 'Deploy to YAML to Kubernetes'
   inputs:
     connectionType: 'Azure Resource Manager'
     azureSubscriptionEndpoint: 'Microsoft Azure Internal Consumption(18c9a476-0820-4be7-afc7-6d1fea9fd71e)'
