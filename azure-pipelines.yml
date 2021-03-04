@@ -1,79 +1,70 @@
-# Deploy to Azure Kubernetes Service
-# Build and push image to Azure Container Registry; Deploy to Azure Kubernetes Service
-# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
+# ASP.NET Core (.NET Framework)
+# Build and test ASP.NET Core projects targeting the full .NET Framework.
+# Add steps that publish symbols, save build artifacts, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
+# turn off trigger
 
-trigger:
-- none
+#trigger:
+#- master
+trigger: none
 
-resources:
-- repo: self
+pool:
+  vmImage: 'windows-latest'
 
 variables:
+  #solution: '**/FullFrameworkDemo/*.csproj'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
 
-  # Container registry service connection established during pipeline creation
-  dockerRegistryServiceConnection: '80458614-9d6e-412a-af61-f3d303af94ed'
-  imageRepository: 'kydemo'
-  containerRegistry: 'dockerdemoacr2.azurecr.io'
-  dockerfilePath: '**/Dockerfile'
-  tag: '$(Build.BuildId)'
-  imagePullSecret: 'dockerdemoacr288dc-auth'
+steps:
+- task: NuGetCommand@2
+  displayName: 'Nuget Restore'
+  inputs:
+    command: 'restore'
+    restoreSolution: '**/*.sln'
+    feedsToUse: 'select'
 
-  # Agent VM image name
-  vmImageName: 'ubuntu-latest'
-  
+- task: VSBuild@1
+  inputs:
+    solution: '**\*.sln'
+    createLogFile: true
+    configuration: 'debug'
 
-stages:
-- stage: Build
-  displayName: Build stage
-  jobs:  
-  - job: Build
-    displayName: Build
-    pool:
-      vmImage: $(vmImageName)
-    steps:
-    - task: Docker@2
-      displayName: Build and push an image to container registry
-      inputs:
-        command: buildAndPush
-        repository: $(imageRepository)
-        dockerfile: $(dockerfilePath)
-        containerRegistry: $(dockerRegistryServiceConnection)
-        tags: |
-          $(tag)
-          
-    - upload: manifests
-      artifact: manifests
+- task: Bash@3
+  displayName: 'Update WebApp Image Tag'
+  inputs:
+    targetType: 'inline'
+    script: |
+      bash -c "sed -i 's/BuildNumber/$(Build.BuildId)/g'  frontend-webapp.yaml"\
 
-- stage: Deploy
-  displayName: Deploy stage
-  dependsOn: Build
+- task: Docker@2
+  displayName: 'Build and Push WebApp'
+  inputs:
+    containerRegistry: 'contoso-acr'
+    repository: 'webapp'
+    command: 'buildAndPush'
+    Dockerfile: '**/Dockerfile'
+    buildContext: '$(Build.SourcesDirectory)\FullFrameworkDemo'
 
-  jobs:
-  - deployment: Deploy
-    displayName: Deploy
-    pool:
-      vmImage: $(vmImageName)
-    environment: 'KyDemo.default'
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - task: KubernetesManifest@0
-            displayName: Create imagePullSecret
-            inputs:
-              action: createSecret
-              secretName: $(imagePullSecret)
-              dockerRegistryEndpoint: $(dockerRegistryServiceConnection)
-              
-          - task: KubernetesManifest@0
-            displayName: Deploy to Kubernetes cluster
-            inputs:
-              action: deploy
-              manifests: |
-                $(Pipeline.Workspace)/manifests/deployment.yml
-                $(Pipeline.Workspace)/manifests/service.yml
-              imagePullSecrets: |
-                $(imagePullSecret)
-              containers: |
-                $(containerRegistry)/$(imageRepository):$(tag)
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish WebApp YAML file'
+  inputs:
+    PathtoPublish: 'frontend-webapp.yaml'
+    ArtifactName: 'frontend-webapp'
+    publishLocation: 'Container'
 
+- task: Kubernetes@1
+  inputs:
+    connectionType: 'Azure Resource Manager'
+    azureSubscriptionEndpoint: 'Microsoft Azure Internal Consumption(18c9a476-0820-4be7-afc7-6d1fea9fd71e)'
+    azureResourceGroup: 'rg-contoso-bikes'
+    kubernetesCluster: 'contosobikes'
+    namespace: 'default'
+    command: 'apply'
+    useConfigurationFile: true
+    configuration: 'frontend-webapp.yaml'
+    secretType: 'dockerRegistry'
+    containerRegistryType: 'Azure Container Registry'
+    azureSubscriptionEndpointForSecrets: 'Microsoft Azure Internal Consumption(18c9a476-0820-4be7-afc7-6d1fea9fd71e)'
+    azureContainerRegistry: 'contosodemo.azurecr.io'
+    secretName: 'acr'
