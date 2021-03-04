@@ -1,0 +1,27 @@
+# Deploy to Azure Kubernetes Service
+# Build and push image to Azure Container Registry; Deploy to Azure Kubernetes Service
+# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
+
+trigger:
+- none
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+
+
+
+- task: Kubernetes@1
+  inputs:
+    connectionType: 'Kubernetes Service Connection'
+    kubernetesServiceEndpoint: 'myAKSWinCluster'
+    namespace: 'default'
+    command: 'apply'
+    useConfigurationFile: true
+    configuration: 'webapp.yaml'
+    secretType: 'dockerRegistry'
+    containerRegistryType: 'Azure Container Registry'
+    azureSubscriptionEndpointForSecrets: 'Microsoft Azure Internal Consumption(18c9a476-0820-4be7-afc7-6d1fea9fd71e)'
+    azureContainerRegistry: 'dockerdemoacr2.azurecr.io'
+    secretName: 'acr'

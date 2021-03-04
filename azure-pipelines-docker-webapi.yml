@@ -1,0 +1,58 @@
+# Docker
+# Build and push an image to Azure Container Registry
+# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
+
+trigger:
+- master
+  
+resources:
+- repo: self
+
+variables:
+  # Container registry service connection established during pipeline creation
+  dockerRegistryServiceConnection: 'c9ab2566-8bbc-487f-adb1-6a37f158c0fe'
+  imageRepository: 'webapi'
+  containerRegistry: 'contosodemo.azurecr.io'
+  dockerfilePath: '$(Build.SourcesDirectory)/WebAPI/Dockerfile'
+  tag: '$(Build.BuildId)'
+
+  # Agent VM image name
+  vmImageName: 'windows-latest'
+
+stages:
+- stage: Build
+  displayName: Build and push stage
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: NuGetCommand@2
+      inputs:
+        command: 'restore'
+        restoreSolution: '**/*.sln'
+        feedsToUse: 'select'
+
+    - task: VSBuild@1
+      inputs:
+        solution: '**\*.sln'
+        createLogFile: true
+        configuration: 'debug'
+    
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish WebApi artifacts'
+      inputs:
+        PathtoPublish: '$(Build.SourcesDirectory)\WebAPI\bin'
+        ArtifactName: 'webapi'
+        publishLocation: 'Container'
+
+    - task: Docker@2
+      displayName: Build and push WebAPI image to container registry
+      inputs:
+        command: buildAndPush
+        repository: $(imageRepository)
+        dockerfile: $(dockerfilePath)
+        containerRegistry: $(dockerRegistryServiceConnection)
+        tags: $(tag)
+        buildContext: $(Build.SourcesDirectory)/WebAPI

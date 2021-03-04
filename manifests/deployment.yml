@@ -1,0 +1,16 @@
+apiVersion : apps/v1beta1
+kind: Deployment
+metadata:
+  name: kydemo 
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: kydemo 
+    spec:
+      containers:
+        - name: kydemo 
+          image: dockerdemoacr2.azurecr.io/kydemo
+          ports:
+          - containerPort: 80

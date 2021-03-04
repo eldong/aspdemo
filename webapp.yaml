@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kywebapp
+  labels:
+    app: kywebapp
+spec:
+  replicas: 1
+  template:
+    metadata:
+      name: kywebapp
+      labels:
+        app: kywebapp
+    spec:
+      nodeSelector:
+        "beta.kubernetes.io/os": windows
+      containers:
+      - name: kywebapp
+#        image: dockerdemoacr2.azurecr.io/demowebapp:v9
+        image: dockerdemoacr2.azurecr.io/kydemo:209
+        resources:
+          limits:
+            cpu: 1
+            memory: 800M
+          requests:
+            cpu: .1
+            memory: 300M
+        ports:
+          - containerPort: 80
+  selector:
+    matchLabels:
+      app: kywebapp
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kywebapp
+spec:
+  type: LoadBalancer
+  ports:
+  - protocol: TCP
+    port: 80
+  selector:
+    app: kywebapp
